@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  mysqldb:
+    image: mysql:8
+    # NOTE: use of "mysql_native_password" is not recommended: https://dev.mysql.com/doc/refman/8.0/en/upgrading-from-previous-series.html#upgrade-caching-sha2-password
+    # (this is just an example, not intended to be a production configuration)
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_ROOT_PASSWORD: dbpasswd
+      MYSQL_DATABASE: mautic
+      MYSQL_USER: mautic
+      MYSQL_PASSWORD: mauticpwd
+    volumes:
+      - 'mysql_data:/var/lib/mysql'
+
+  mailpit:
+    image: axllent/mailpit:v1.3.10
+    environment:
+      - MP_DATA_FILE=/data/maildata.sqlite
+      - MP_MAX_MESSAGES=500
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    volumes:
+      - mailpit_data:/data
+
+  mautic:
+    image: mautic/mautic:v4-apache
+    platform: linux/amd64
+    environment:
+      - MAUTIC_DB_HOST=mysqldb
+      - MAUTIC_DB_USER=mautic
+      - MAUTIC_DB_PASSWORD=mauticpwd
+      - MAUTIC_DB_NAME=mautic
+      - MAUTIC_URL=http://localhost:8080/
+      - MAUTIC_INSTALL_FORCE=true
+      - MAUTIC_ADMIN_USERNAME=administrator
+      - MAUTIC_ADMIN_EMAIL=please.change.me@email.address
+      - MAUTIC_ADMIN_PASSWORD=SomeSecretPassword
+      - MAUTIC_CONFIG_MAILER_HOST=mailpit
+      - MAUTIC_CONFIG_MAILER_PORT=1025
+    ports:
+      - "8080:80"
+    volumes:
+      - mautic_data:/var/www/html
+    depends_on:
+      - mysqldb
+      - mailpit
+
+volumes:
+  mysql_data:
+    driver: local
+  mautic_data:
+    driver: local
+  mailpit_data:
+    driver: local
